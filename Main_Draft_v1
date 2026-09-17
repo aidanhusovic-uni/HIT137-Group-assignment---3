@@ -25,7 +25,7 @@ def open_images():
         img = Image.open(file_path)
         
         #Resize the image 
-        img.thumbnail((1080, 720))
+        img.thumbnail((1080, 1080))
         
         # 3. Convert the Image object into a Tkinter-compatible photo image
         tk_img = ImageTk.PhotoImage(img)
@@ -34,7 +34,7 @@ def open_images():
         image_label.config(image=tk_img)
 
         #Gives the image its position
-        image_label .place(x = 430, y = 200)
+        image_label .place(x = 390, y = 200)
         
         #Crucial to keep a reference to the image so Python's garbage collector doesnt erase it
         image_label.image = tk_img
@@ -45,7 +45,7 @@ topFrame.pack()
 bottomFrame = Frame(root)
 bottomFrame.pack(side=BOTTOM)
 
-btn_normal = Button(root, text='Choose file', width=15, height=2, command=open_images)
+btn_normal = Button(root, text='Choose file', width=15, height=2, command=open_images, bg='black', fg='white', activebackground='blue', activeforeground='yellow')
 btn_normal.pack(pady=10)
 btn_normal.place(x=705, y=10)
 
