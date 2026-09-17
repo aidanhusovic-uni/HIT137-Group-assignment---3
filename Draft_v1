@@ -1,0 +1,13 @@
+#draft testing
+
+import tkinter as tk
+
+root = tk.Tk ()
+root.title ('Hello Tkinter')
+
+thetitle = tk.Label (root, text = 'PHOTO PUZZLE')
+thetitle.pack ()
+
+root.mainloop()
+
+#main eg of opening a blank window and base design for making the application
