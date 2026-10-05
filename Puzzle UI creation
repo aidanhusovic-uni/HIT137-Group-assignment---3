@@ -24,6 +24,7 @@ class ImagePuzzle:
         self.solved = False # Store whether the puzzle is solved or not
 
     #load image function
+
     def load_image(self, file_path): #Load an image from the specified path and prepare it for the puzzle.
 
         #Read the image from disk.
@@ -73,6 +74,7 @@ class ImagePuzzle:
         return image[start_y:start_y + side, start_x:start_x + side].copy() #Crop the image to a square and return the cropped image
 
     def __create_tiles(self):
+
         #Clears existing tiles
         self.tiles = [] #Clear the existing tiles list
 
@@ -82,6 +84,7 @@ class ImagePuzzle:
         tile_id = 0 #Initialize the tile ID counter
 
         #Create the tiles by slicing the original image into smaller pieces.
+
         for row in range(self.grid_size): #Loop through each row of the grid
             for col in range(self.grid_size): #Loop through each column of the grid
                 y1 = row * tile_height #Calculate the starting y-coordinate for the tile
@@ -101,6 +104,7 @@ class ImagePuzzle:
 
         #Apply all of our random trnsformations to the tiles to scramble them.
         for i in range(count): #Loop through the number of transformations to apply
+
             tile_choice = random.choice(self.tiles) #Randomly select a tile from the tiles list
 
             if i =='swap': #If the transformation is a swap, randomly select two different tiles to swap
@@ -108,6 +112,7 @@ class ImagePuzzle:
                 pos_a, pos_b = random.sample(range(len(self.tiles)), 2) #Randomly select two different tile positions to swap
                 transfer = SwapTransfer(pos_a, pos_b) #Create a new SwapTransfer object with the selected tile positions
                 transfer.apply(self.tiles) #Apply the swap transformation to the tiles list
+
             elif i == 'rotate': #Else if the transformation is a rotation, randomly select a tile and a rotation angle to apply
                 #Select a random tile and a random rotate angle
                 index = random.randrange(len(self.tiles)) #Randomly select a tile index from the tiles list
@@ -164,7 +169,7 @@ class ImagePuzzle:
         self.tiles[index].rotate_cw() #Rotate the tile at the specified index clockwise by 90 degrees
         self.moves += 1 #Increment the move counter
 
-    def flip_tile (self, index, direction):
+    def flip_tile (self, index, direction = 'horizontal'):
 
         #Flip our selected tile and count a move
         if direction == 'horizontal': #If the flip direction is horizontal
@@ -180,6 +185,7 @@ class ImagePuzzle:
         return self.tiles[index].is_correct_orientation() #Return True if the tile is in its correct orientation, False otherwise
 
     def tile_incorrect (self):
+
         #Check the incorrect tiles
 
         #Counter for checking incorrect tiles 
@@ -192,6 +198,7 @@ class ImagePuzzle:
         return self.check_solve
 
     def hint (self):
+
         #Find a incorrect tile then its correct pos
         #Loop through the tiles to find the first one 
         for current_index in range (len(self.tiles)):
@@ -200,12 +207,14 @@ class ImagePuzzle:
         return None
 
     def solve (self):
-        #Returns all tiles to home pos
 
+        #Returns all tiles to home pos
         tile_order = [None] * len(self.tiles)
 
+        
         for tile in self.tiles:
             tile_order [tile.tile_id] = tile
+
         self.tiles = tile_order
 
         #Restores the original pos
@@ -216,4 +225,4 @@ class ImagePuzzle:
         self.moves = 0
         self.hints_used = 0
         self.sovled = True
-        
+
