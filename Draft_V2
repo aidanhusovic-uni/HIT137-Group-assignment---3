@@ -178,9 +178,10 @@ class Tile:
 #Main puzzle function class
 class ImagePuzzle:
     #Stores the maximum width and height used when displaying images
-    MAX_SCREEN_WIDTH = 800
-    MAX_SCREEN_HEIGHT = 800
+    MAX_SCREEN_WIDTH = 450
+    MAX_SCREEN_HEIGHT = 450
 
+    #Main def 
     def __init__(self, grid_size=3):
 
         #Creates the puzzle values and starts the game with no image or tiles
@@ -206,8 +207,8 @@ class ImagePuzzle:
         image = self.__make_square_and_divisible(image)
         self.original_image = image.copy()
 
-        self.__create_tiles()
-        self.__scramble_tiles()
+        self.__create_tiles() #Calls the create_tiles function
+        self.__scramble_tiles() #Calls the scramble tiles function
 
         #Resets the move, hint and solved values for a new game
         self.moves = 0
@@ -251,7 +252,7 @@ class ImagePuzzle:
         #Cuts the image using row and column positions calculated from the tile size
         for row in range(self.grid_size):
             for col in range(self.grid_size):
-                y1 = row * tile_height
+                y1 = row * tile_height 
                 y2 = y1 + tile_height
                 x1 = col * tile_width
                 x2 = x1 + tile_width
