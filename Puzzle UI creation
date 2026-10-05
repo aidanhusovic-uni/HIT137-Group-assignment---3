@@ -1,0 +1,93 @@
+import random
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+import cv2
+import numpy as np
+from PIL import Image, ImageTk
+
+class ImagePuzzle:
+
+    # Maximum displayed image size.
+    MAX_SCREEN_WIDTH = 800
+    MAX_SCREEN_HEIGHT = 800
+
+    def __init__(self, grid_size=3):
+
+        #Set the initial puzzle values.
+        self.grid_size = grid_size #Set the grid size for the puzzle
+        self.original_image = None #Store the original image for the puzzle
+        self.tiles = [] #Store the tiles for the puzzle
+        self.transformations = [] #Store the transformations applied to the tiles
+        self.moves = 0 # Store the number of moves made in the puzzle
+        self.hints_used = 0 # Store the number of hints used in the puzzle
+        self.solved = False # Store whether the puzzle is solved or not
+
+    #load image function
+    def load_image(self, file_path): #Load an image from the specified path and prepare it for the puzzle.
+
+        #Read the image from disk.
+        image = cv2.imread(file_path) #read the image using OpenCV
+
+        if image is None: #if the image could not be read, raise an error
+            raise ValueError('OpenCV could not read the selected image.')
+
+        # Prepare the image and create the puzzle.
+        image = self.__resize_to_screen(image) #Resize the image to fit the screen
+        image = self.__make_square_and_divisible(image) #Make the image square and divisible by the grid size
+        self.original_image = image.copy() #Store a copy of the original image
+
+        self.__create_tiles() #Create the tiles for the puzzle
+        self.__scramble_tiles() #Scramble the tiles to create the puzzle
+
+        #Reset the game state.
+        self.moves = 0 #Reset the number of moves made in the puzzle
+        self.hints_used = 0# Reset the number of hints used in the puzzle
+        self.solved = False #Reset the solved state of the puzzle
+
+    def __resize_to_screen(self, image):
+
+        #Resize the image to fit within a certain size while maintaining the aspect ratio.
+        height, width = image.shape[:2] #Get the height and width of the image
+
+        #Vars for calculating the scale factor to fit the image within the maximum screen size
+        scale = min(self.MAX_SCREEN_WIDTH / width, self.MAX_SCREEN_HEIGHT / height, 1.0) #Calculate the scale factor to fit the image within the maximum screen size
+        new_width = int(width * scale) #Calculate the new width of the image based on the scale factor
+        new_height = int(height * scale) #Calculate the new height of the image based on the scale factor
+        return cv2.resize(image, (new_width, new_height)) #Resize the image using OpenCV and return the resized image
+
+    def __make_square_and_divisible(self, image):
+
+        #Make the image square and divisible by the grid size.
+        height, width = image.shape[:2] #Get the height and width of the image
+
+        #Crops our image 
+        side = min(height, width) #Calculate the side length of the square image based on the minimum of the height and width
+        side = (side // self.grid_size) * self.grid_size #Adjust the side length to be divisible by the grid size
+
+        if side < self.grid_size: #if the side length is less than the grid size, raise an error
+            raise ValueError('Image is too small for the specified grid size.')
+
+        start_x = (width - side) // 2 #Calculate the starting x-coordinate for cropping the image
+        start_y = (height - side) // 2 #Calculate the starting y-coordinate for cropping the image
+        return image[start_y:start_y + side, start_x:start_x + side].copy() #Crop the image to a square and return the cropped image
+
+    def __create_tiles(self):
+        #Clears existing tiles
+        self.tiles = [] #Clear the existing tiles list
+
+        #Calculate the size of each tile based on the grid size.
+        tile_height = self.original_image.shape[0] // self.grid_size #Calculate the height of each tile based on the grid size
+        tile_width = self.original_image.shape[1] // self.grid_size #Calculate the width of each tile based on the grid size
+        tile_id = 0 #Initialize the tile ID counter
+
+        #Create the tiles by slicing the original image into smaller pieces.
+        for row in range(self.grid_size): #Loop through each row of the grid
+            for col in range(self.grid_size): #Loop through each column of the grid
+                y1 = row * tile_height #Calculate the starting y-coordinate for the tile
+                y2 = y1 + tile_height #Calculate the ending y-coordinate for the tile
+                x1 = col * tile_width #Calculate the starting x-coordinate for the tile
+                x2 = x1 + tile_width #Calculate the ending x-coordinate for the tile
+                tile_image = self.original_image[y1:y2, x1:x2].copy() #Slice the original image to create the tile image
+                self.tiles.append(Tile(tile_id, tile_image)) #Create a new tile object and add it to the tiles list
+                tile_id += 1 #Increment the tile ID counter
