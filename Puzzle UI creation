@@ -135,5 +135,85 @@ class ImagePuzzle:
             #Store our transformation for undo functionality.
             self.transformations.append(transfer) #Add the transformation to the transformations list for undo functionality
 
-        
+    def get_tile_size (self):
+        #Return the size of each tile as a tuple (width, height).
+        height, width = self.original_image.shape[:2] #Get the height and width of the original image
+        return (width // self.grid_size, height // self.grid_size) #Return the size of each tile as a tuple (width, height) based on the grid size
 
+    def assemble_image (self):
+
+        #Create rows 
+
+        rows = []
+
+        for row in range (self.grid_size): #Loop through each row of the grid
+            row_tiles = [self.tiles[row * self.grid_size + col].current_image for col in range(self.grid_size)] #Get the current images of the tiles in the current row
+            rows.append(np.hstack(row_tiles)) #Horizontally stack the tiles in the current row and add it to the rows list
+
+        return np.vstack(rows) #Vertically stack the rows to create the assembled image and return it
+
+    def swap_tiles (self, pos_a, pos_b):
+
+        #Swap our 2 selected tiles and count a move
+        self.tiles[pos_a], self.tiles[pos_b] = self.tiles[pos_b], self.tiles[pos_a] #Swap the tiles at the specified positions
+        self.moves += 1 #Increment the move counter
+
+    def rotate_tile (self, index):
+
+        #Rotate our selected tile and count a move
+        self.tiles[index].rotate_cw() #Rotate the tile at the specified index clockwise by 90 degrees
+        self.moves += 1 #Increment the move counter
+
+    def flip_tile (self, index, direction):
+
+        #Flip our selected tile and count a move
+        if direction == 'horizontal': #If the flip direction is horizontal
+            self.tiles[index].flip_horizontal() #Flip the tile at the specified index horizontally
+        else: #If the flip direction is vertical
+            self.tiles[index].flip_vertical() #Flip the tile at the specified index vertically
+        self.moves += 1 #Increment the move counter
+
+    def tile_correct (self, index):
+
+        #Check if the tile at the specified index is in its correct orientation.
+        tile = self.tiles[index] #Get the tile at the specified index
+        return self.tiles[index].is_correct_orientation() #Return True if the tile is in its correct orientation, False otherwise
+
+    def tile_incorrect (self):
+        #Check the incorrect tiles
+
+        #Counter for checking incorrect tiles 
+        return sum (not self.tile_correct (index) for index in range (len(self.tiles)))
+
+    def check_solve (self):
+
+        #Checks if any tiles not correct
+        self.solved = self.tile_incorrect() == 0
+        return self.check_solve
+
+    def hint (self):
+        #Find a incorrect tile then its correct pos
+        #Loop through the tiles to find the first one 
+        for current_index in range (len(self.tiles)):
+            if not self.tile_correct(current_index):
+                return current_index, self.tiles [current_index].tile_id
+        return None
+
+    def solve (self):
+        #Returns all tiles to home pos
+
+        tile_order = [None] * len(self.tiles)
+
+        for tile in self.tiles:
+            tile_order [tile.tile_id] = tile
+        self.tiles = tile_order
+
+        #Restores the original pos
+        for tile in self.tiles:
+            tile.reset()
+
+        #reset the counter
+        self.moves = 0
+        self.hints_used = 0
+        self.sovled = True
+        
