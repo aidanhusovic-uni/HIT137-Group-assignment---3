@@ -1,0 +1,58 @@
+from tkinter import * 
+from tkinter import filedialog 
+from PIL import Image, ImageTk 
+
+root = Tk() 
+root.geometry('1440x1080') 
+root.configure(bg='gray') 
+
+# 1. Create the canvas where the image will live and move
+canvas = Canvas(root, width=1080, height=800, bg="white") 
+canvas.place(x=180, y=150) # Centered on your 1440x1080 screen
+
+# Global variable to keep track of the image object inside the canvas
+canvas_image_id = None
+
+def open_images():
+    global canvas_image_id
+    file_path = filedialog.askopenfilename(
+        initialdir="C:/Pictures/", 
+        title="Select an Image", 
+        filetypes=[("Image Files", "*.png *.jpg *.jpeg")]
+    )
+    if file_path: 
+        img = Image.open(file_path) 
+        img.thumbnail((1080, 800)) 
+        tk_img = ImageTk.PhotoImage(img) 
+        
+        # 2. Clear any previous image and draw the new one inside the canvas
+        canvas.delete("all")
+        # Places the image in the center of the canvas
+        canvas_image_id = canvas.create_image(540, 400, image=tk_img, anchor=CENTER)
+        
+        # Keep a reference so garbage collection doesn't delete it
+        canvas.image = tk_img 
+
+def shift_image(dx, dy):
+    # 3. Use the canvas instance to move the specific image ID
+    if canvas_image_id:
+        canvas.move(canvas_image_id, dx, dy)
+
+# Top UI Buttons
+btn_file = Button(root, text='Choose file', width=15, height=2, command=open_images, bg='black', fg='white', activebackground='blue', activeforeground='yellow')
+btn_file.place(x=10, y=1020)
+
+# Corrected directions: Left arrow moves left (-20), Right arrow moves right (+20)
+btn_shift_left = Button(root, text='<<-- LEFT', width=15, height=2, bg='black', fg='white', activebackground='blue', activeforeground='yellow', command=lambda: shift_image(-20, 0))
+btn_shift_left.place(x=10, y=10)
+
+btn_shift_right = Button(root, text='RIGHT -->>', width=15, height=2, bg='black', fg='white', activebackground='blue', activeforeground='yellow', command=lambda: shift_image(20, 0))
+btn_shift_right.place(x=1310, y=10)
+
+btn_shift_up = Button(root, text='---UP---', width=15, height=2, bg='black', fg='white', activebackground='blue', activeforeground='yellow', command=lambda: shift_image(0,-20))
+btn_shift_up.place(x=705, y=10)
+
+btn_shift_up = Button(root, text='---DOWN---', width=15, height=2, bg='black', fg='white', activebackground='blue', activeforeground='yellow', command=lambda: shift_image(0,20))
+btn_shift_up.place(x=705, y=1020)
+
+root.mainloop()
