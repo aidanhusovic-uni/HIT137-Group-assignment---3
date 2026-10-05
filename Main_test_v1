@@ -6,7 +6,7 @@ root = Tk()
 root.geometry('1440x1080') 
 root.configure(bg='gray') 
 
-# 1. Create the canvas where the image will live and move
+#  Create the canvas where the image will live and move
 canvas = Canvas(root, width=1080, height=800, bg="white") 
 canvas.place(x=180, y=150) # Centered on your 1440x1080 screen
 
@@ -25,7 +25,7 @@ def open_images():
         img.thumbnail((1080, 800)) 
         tk_img = ImageTk.PhotoImage(img) 
         
-        # 2. Clear any previous image and draw the new one inside the canvas
+        # Clear any previous image and draw the new one inside the canvas
         canvas.delete("all")
         # Places the image in the center of the canvas
         canvas_image_id = canvas.create_image(540, 400, image=tk_img, anchor=CENTER)
@@ -34,7 +34,7 @@ def open_images():
         canvas.image = tk_img 
 
 def shift_image(dx, dy):
-    # 3. Use the canvas instance to move the specific image ID
+    # Use the canvas instance to move the specific image ID
     if canvas_image_id:
         canvas.move(canvas_image_id, dx, dy)
 

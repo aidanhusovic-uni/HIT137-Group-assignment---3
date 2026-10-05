@@ -1,0 +1,163 @@
+#Class creation workspace
+import random
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+import cv2
+import numpy as np
+from PIL import Image, ImageTk
+
+class Transfer: #our base class for the tile transfers
+
+    def __init__ (self, description) :
+
+        self.description = description #stores the description of the transfer
+
+    def apply (self, value):
+
+        raise NotImplementedError("Override this method in subclasses")
+
+    def undo (self, value) :
+
+        raise NotImplementedError("Override this method in subclasses")
+
+    def __str__ (self) :
+
+        return self.description #Return the description of the transfer
+
+class SwapTransfer (Transfer): #our subclass for the tile swap transfer
+
+    def __init__ (self, pos_a, pos_b) :
+
+        super ().__init__(f'Swap Tiles {pos_a} and {pos_b}') #call the base class constructor with a description of the transfer
+        self.pos_a = pos_a #store the first position
+        self.pos_b = pos_b #store the second position
+
+    def apply (self, tiles):
+
+        #swap the tiles at the two different positions
+        tiles[self.pos_a], tiles[self.pos_b] = tiles[self.pos_b], tiles[self.pos_a]
+
+        
+    def undo (self, value) :
+
+        #swap the tiles back to their original positions
+        self.apply(value)
+
+class RotateTransfer (Transfer):
+    #Uses OpenCV to rotate the image by a specified angle (90, 180, or 270 degrees)
+    ROTATIONS = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}  
+
+    def __init__ (self, angle) :
+
+
+        if angle not in self.ROTATIONS: #if statement for if the angle is not one of the specified values
+            raise ValueError("Angle must be one of 90, 180, or 270 degrees.")
+        
+        super().__init__(f'Rotate Image by {angle} degrees') #call the base class constructor with a description of the transfer
+        self.angle = angle #store the rotation angle
+
+    def apply (self, image):
+        #rotate the image using OpenCV
+        return cv2.rotate(image, self.ROTATIONS[self.angle])
+
+    def undo (self, image):
+        #rotates our image back to original pos (the 360% angle is to ensure that we get the correct rotation value for the undo operation)
+        return cv2.rotate(image, self.ROTATIONS [(360 - self.angle) %360])
+    
+    @classmethod #this makes it so our new method can be called without creating an instance of the class
+
+    def apply_angle (cls, image, angle):
+
+        if angle == 0: #this disallows the image rotating if its angle is correct (at 0 degrees is true)
+            return image.copy() #rotation isnt needed
+        return cv2.rotate(image, cls.ROTATIONS[angle]) #rotate the image using OpenCV
+
+class FlipTransfer (Transfer): #our subclass for the tile flip transfer
+
+    def __init__ (self, direction) :
+       #setting up our if statement to check if the direction is valid so not allowing it to do a flip if the direction is not valid
+        if direction not in ['horizontal', 'vertical']:
+            raise ValueError("Direction must be 'horizontal' or 'vertical'.")
+
+        description = 'Flip tile Horizontally' if direction == 'horizontal' else 'Flip tile Vertically'
+        super().__init__(description) #calling the base class constructor with a description of the transfer
+        self.direction = direction #store the flip direction
+
+    def apply (self, image):
+        #flip the image using OpenCV
+        #sets the flip_n variable to 1 if the direction is horizontal, otherwise sets it to 0 for vertical
+        flip_n = 1 if self.direction == 'horizontal' else 0 
+        return cv2.flip(image, flip_n)
+
+    def undo (self, image):
+        #flips the image back to its original orientation
+        return self.apply(image)  # flipping again will undo the flip
+
+class tile:
+
+    def __init__(self, tile_id, image):
+        #Stores the tile ID and the original image for the tile
+        self.__tile_id = tile_id #store the tile ID
+        #Keep the original image for the tile so that we can reset it later if needed
+        self.__original_image = image.copy()
+        #Store the current image for the tile, which can be modified by transfers
+        self.__current_image = image.copy()
+
+        #vars to track the current rotation and flip state of the tile
+        self.__rotation = 0 #initialize the rotation to 0 degrees
+        self.__flipped_horizontal = False #initialize the horizontal flip state to False
+        self.__flipped_vertical = False #initialize the vertical flip state to False
+
+    @property #property decorator to make the tile ID read-only
+    
+    def tile_id(self):
+        return self.__tile_id #return the tile ID to home pos
+
+    @property
+    def current_image(self):
+        return self.__current_image #return the current image of the tile
+
+    @current_image.setter #setter decorator to allow setting the current image of the tile
+    def current_image(self, image):
+        self.__current_image = image #set the current image of the tile
+
+    @property
+    def rotation (self):
+        return self.__rotation #return the current rotation of the tile
+
+    @property
+    def flipped_horizontal (self):
+        return self.__flipped_horizontal #return the current horizontal flip state of the tile
+
+    @property
+    def flipped_vertical (self):
+        return self.__flipped_vertical #return the current vertical flip state of the tile
+
+    def rotatate_cw (self):
+        #Rotate the tile 90 degrees clockwise
+        self.__current_image = RotateTransfer.rotate.apply_angle(self.__current_image, 90) #rotate the current image using OpenCV
+        #updates the tile pos by +90d 
+        self.__rotation = (self.__rotation + 90) % 360 #update the rotation state
+
+
+    def flip_horizontal (self):
+        #Flip the tile horizontally
+        self.__current_image = FlipTransfer.flip('horizontal') #flip the current image using the custom FlipTransfer class
+        self.__flipped_horizontal = not self.__flipped_horizontal #update the horizontal flip state
+
+    def flip_vertical (self):
+        #Flip the tile vertically
+        self.__current_image = FlipTransfer.flip('vertical') #flip the current image using the custom FlipTransfer class
+        self.__flipped_vertical = not self.__flipped_vertical #update the vertical flip state
+
+    def is_correct_orientation (self):
+        #Check if the tile is in its original orientation (not rotated or flipped)
+        return self.__rotation == 0 and not self.__flipped_horizontal and not self.__flipped_vertical #return True if the tile is in its original orientation, False otherwise
+
+    def reset_orientation (self):
+        #Reset the tile to its original orientation (not rotated or flipped)
+        self.__current_image = self.__original_image.copy() #reset the current image to the original image
+        self.__rotation = 0 #reset the rotation state to 0 degrees
+        self.__flipped_horizontal = False #reset the horizontal flip state to False
+        self.__flipped_vertical = False #reset the vertical flip state to False
