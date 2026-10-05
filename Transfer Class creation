@@ -67,11 +67,12 @@ class RotateTransfer (Transfer):
     
     @classmethod #this makes it so our new method can be called without creating an instance of the class
 
-    def apply_angle (cls, image, angle):
+    def apply_angle(cls, image, angle):
+
 
         if angle == 0: #this disallows the image rotating if its angle is correct (at 0 degrees is true)
             return image.copy() #rotation isnt needed
-        return cv2.rotate(image, cls.ROTATIONS[angle]) #rotate the image using OpenCV
+        return cv2.rotate(image, cls.ROTATIONS[angle])
 
 class FlipTransfer (Transfer): #our subclass for the tile flip transfer
 
@@ -85,11 +86,12 @@ class FlipTransfer (Transfer): #our subclass for the tile flip transfer
         self.direction = direction #store the flip direction
 
     def apply (self, image):
-        #flip the image using OpenCV
+
         #sets the flip_n variable to 1 if the direction is horizontal, otherwise sets it to 0 for vertical
         flip_n = 1 if self.direction == 'horizontal' else 0 
         return cv2.flip(image, flip_n)
 
     def undo (self, image):
+        
         #flips the image back to its original orientation
         return self.apply(image)  # flipping again will undo the flip

@@ -25,6 +25,7 @@ class Transfer: #our base class for the tile transfers
     def __str__ (self) :
 
         return self.description #Return the description of the transfer
+
 #Swap Transfer function Class
 class SwapTransfer (Transfer): #our subclass for the tile swap transfer
 
@@ -44,6 +45,7 @@ class SwapTransfer (Transfer): #our subclass for the tile swap transfer
 
         #swap the tiles back to their original positions
         self.apply(value)
+
 #Rotate Transfer Class
 class RotateTransfer (Transfer):
     #Uses OpenCV to rotate the image by a specified angle (90, 180, or 270 degrees)
@@ -73,6 +75,7 @@ class RotateTransfer (Transfer):
         if angle == 0: #this disallows the image rotating if its angle is correct (at 0 degrees is true)
             return image.copy() #rotation isnt needed
         return cv2.rotate(image, cls.ROTATIONS[angle]) 
+
 #Flip Transfer Class
 class FlipTransfer (Transfer): #our subclass for the tile flip transfer
 
@@ -229,8 +232,10 @@ class FlipTransfer (Transfer): #our subclass for the tile flip transfer
         self.__rotation = 0 
         self.__flipped_horizontal = False 
         self.__flipped_vertical = False 
+
 #Tile Class
 class tile:
+
 
     def __init__(self, tile_id, image):
         #Stores the tile ID and the original image for the tile
@@ -297,6 +302,7 @@ class tile:
         self.__rotation = 0 
         self.__flipped_horizontal = False 
         self.__flipped_vertical = False 
+
 #Main Puzzle function Class    
 class ImagePuzzle:
 
@@ -317,7 +323,7 @@ class ImagePuzzle:
 
     #load image function
 
-    def load_image(self, file_path): #Load an image from the specified path and prepare it for the puzzle
+    def load_image(self, file_path): #Load an image from the specified path and prepare it for the puzzle.
 
         #Read the image from disk.
         image = cv2.imread(file_path) #read the image using OpenCV
@@ -330,18 +336,18 @@ class ImagePuzzle:
         image = self.__make_square_and_divisible(image) 
         self.original_image = image.copy() 
 
-        self.__create_tiles() #Create the tiles for the puzzle
-        self.__scramble_tiles() #Scramble the tiles to create the puzzle
+        self.__create_tiles() 
+        self.__scramble_tiles() 
 
-        #Reset the game state and counters
+        #Reset the game state.
         self.moves = 0 
         self.hints_used = 0
         self.solved = False 
 
     def __resize_to_screen(self, image):
 
-        #Resize the image to fit within a certain size while maintaining the aspect ratio
-        height, width = image.shape[:2] 
+        #Resize the image to fit within a certain size while maintaining the aspect ratio.
+        height, width = image.shape[:2] #Get the height and width of the image
 
         #Vars for calculating the scale factor to fit the image within the maximum screen size
         scale = min(self.MAX_SCREEN_WIDTH / width, self.MAX_SCREEN_HEIGHT / height, 1.0) 
@@ -351,8 +357,8 @@ class ImagePuzzle:
 
     def __make_square_and_divisible(self, image):
 
-        #Make the image square and divisible by the grid size
-        height, width = image.shape[:2] 
+        #Make the image square and divisible by the grid size.
+        height, width = image.shape[:2] #Get the height and width of the image
 
         #Crops our image 
         side = min(height, width) 
@@ -368,14 +374,14 @@ class ImagePuzzle:
     def __create_tiles(self):
 
         #Clears existing tiles
-        self.tiles = [] 
+        self.tiles = [] #Clear the existing tiles list
 
-        #Calculate the size of each tile based on the grid size
+        #Calculate the size of each tile based on the grid size.
         tile_height = self.original_image.shape[0] // self.grid_size 
         tile_width = self.original_image.shape[1] // self.grid_size 
         tile_id = 0 
 
-        #Create the tiles by slicing the original image into smaller pieces
+        #Create the tiles by slicing the original image into smaller pieces.
 
         for row in range(self.grid_size): #Loop through each row of the grid
             for col in range(self.grid_size): #Loop through each column of the grid
@@ -383,31 +389,31 @@ class ImagePuzzle:
                 y2 = y1 + tile_height 
                 x1 = col * tile_width 
                 x2 = x1 + tile_width 
-                tile_image = self.original_image[y1:y2, x1:x2].copy() #Slice the original image to create the tile image
-                self.tiles.append(tile(tile_id, tile_image)) 
+                tile_image = self.original_image[y1:y2, x1:x2].copy() 
+                self.tiles.append(Tile(tile_id, tile_image)) 
                 tile_id += 1 
 
-    def __scramble_tiles(self):
+    def scramble_tiles(self):
 
         self.transformations = [] #Clear the existing transformations list
 
-        transfer_counts = {3: 6, 4: 12, 5:20} 
+        transfer_counts = {3: 6, 4: 12, 5:20} #Define the number of transformations to apply based on the grid size 
         count = transfer_counts.get(self.grid_size, 6) 
 
-        #Apply all of our random trnsformations to the tiles to scramble them
+        #Apply all of our random trnsformations to the tiles to scramble them.
         for i in range(count): #Loop through the number of transformations to apply
 
-            tile_choice = random.choice(self.tiles) 
+            choice = random.choice(['swap', 'rotate', 'flip']) #Randomly select a tile from the tiles list
 
-            if i =='swap': #If the transformation is a swap, randomly select two different tiles to swap
+            if choice =='swap': #If the transformation is a swap, randomly select two different tiles to swap
                 #selection and swap for 2 random tiles
                 pos_a, pos_b = random.sample(range(len(self.tiles)), 2) 
                 transfer = SwapTransfer(pos_a, pos_b) 
                 transfer.apply(self.tiles) 
 
-            elif i == 'rotate': #Else if the transformation is a rotation, randomly select a tile and a rotation angle to apply
+            elif choice == 'rotate': #Else if the transformation is a rotation, randomly select a tile and a rotation angle to apply
                 #Select a random tile and a random rotate angle
-                index = random.randrange(len(self.tiles)) 
+                pos_a, pos_b = random.randrange(len(self.tiles)) 
                 angle = random.choice([90, 180, 270]) 
                 transfer = RotateTransfer(angle) 
 
@@ -416,24 +422,23 @@ class ImagePuzzle:
                     self.tiles[index].rotate_cw() 
 
             else: #Else if the transformation is a flip, randomly select a tile and a flip direction to apply
-                #Random tile selection to flip
+                #Random tile selection to flip:
 
                 index = random.randrange(len(self.tiles)) 
                 direction = random.choice(['horizontal', 'vertical']) 
                 transfer = FlipTransfer(direction) 
-                self.tiles[index].flip(direction) 
-
+                
                 #Apply the transformation to the list of transformations for undo functionality.
-                if direction == 'horizontal': 
+                if direction == 'horizontal': #if the flip is horizontal
                     self.tiles [index].flip_horizontal() 
                 else: 
                     self.tiles [index].flip_vertical() 
 
-            #Store our transformation for undo functionality
+            #Store our transformation for undo functionality.
             self.transformations.append(transfer) 
 
     def get_tile_size (self):
-        #Return the size of each tile as a tuple (width, height)
+        
         height, width = self.original_image.shape[:2] 
         return (width // self.grid_size, height // self.grid_size) 
 
@@ -447,19 +452,19 @@ class ImagePuzzle:
             row_tiles = [self.tiles[row * self.grid_size + col].current_image for col in range(self.grid_size)] 
             rows.append(np.hstack(row_tiles)) 
 
-        return np.vstack(rows) #Vertically stack the rows to create the assembled image and return it
+        return np.vstack(rows) 
 
     def swap_tiles (self, pos_a, pos_b):
 
         #Swap our 2 selected tiles and count a move
         self.tiles[pos_a], self.tiles[pos_b] = self.tiles[pos_b], self.tiles[pos_a] 
-        self.moves += 1 #Increment the move counter
+        self.moves += 1 
 
     def rotate_tile (self, index):
 
         #Rotate our selected tile and count a move
         self.tiles[index].rotate_cw() 
-        self.moves += 1 #Increment the move counter
+        self.moves += 1 
 
     def flip_tile (self, index, direction = 'horizontal'):
 
@@ -468,12 +473,11 @@ class ImagePuzzle:
             self.tiles[index].flip_horizontal() 
         else: 
             self.tiles[index].flip_vertical() 
-        self.moves += 1 #Increment the move counter
+        self.moves += 1 
 
     def tile_correct (self, index):
 
         #Check if the tile at the specified index is in its correct orientation.
-        tile = self.tiles[index] 
         return self.tiles[index].is_correct_orientation() 
 
     def tile_incorrect (self):
@@ -518,72 +522,17 @@ class ImagePuzzle:
         self.hints_used = 0
         self.sovled = True
 
-class PuzzleCreate:
+# Starts the Tkinter application.
 
-    #Create main window function
+def main():
+    # Create the window and application.
+    root = tk.Tk()
+    ImagePuzzle(root)
 
-    def __init__ (self, root):
+    # Start the Tkinter event loop.
+    root.mainloop()
 
-        #Configure main window
-        self.root = root
-        self.root.title ('Scramble Puzzle / AIDAN HUSOVIC')
-        self.root.configure (bg = '#1e1e2e')
-
-        #Puzzle model and values on the app
-        self.puzzle = ImagePuzzle()
-        self.selected_tile = None
-        self.hint_tile = None
-        self.hint.home = None
-        self.original_photo = None
-        self.puzzle_photo = None
-
-        #Creating our interface 
+# Run the program only when this file is executed directly.
+if __name__ == '__main__':
+    main()
     
-    def controls(self):
-        
-        # Create the top control frame.
-        control_frame = tk.Frame(self.root, bg='#1e1e2e')
-        control_frame.pack(fill=tk.X, padx=12, pady=10)
-
-        # Add the grid-size selector.
-        tk.Label(control_frame, text='Grid size:', bg='#1e1e2e', fg='white', font=('Arial', 11)).pack(side=tk.LEFT)
-
-        self.grid_size_var = tk.StringVar(value='3 x 3')
-        ttk.Combobox(control_frame, textvariable=self.grid_size_var, values=['3 x 3', '4 x 4', '5 x 5'], state='readonly', width=8).pack(side=tk.LEFT, padx=(6, 15))
-
-        # Add the Load Image button.
-        tk.Button(control_frame, text='Load Image', command=self.load_image, bg='#6781b1', fg='white', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4).pack(side=tk.LEFT)
-
-        # Add the Hint button.
-        self.hint_button = tk.Button(control_frame, text='Hint', command=self.use_hint, bg='#836c43', fg='black', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4)
-        self.hint_button.pack(side=tk.LEFT, padx=(15, 0))
-
-        # Add the Solve button.
-        tk.Button(control_frame, text='Solve', command=self.solve_puzzle, bg='#ff003c', fg='white', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4).pack(side=tk.LEFT, padx=(10, 0))
-
-    def tile_controls(self):
-
-        # Create the tile control panel.
-        frame = tk.LabelFrame(self.root, text='Tile Controls', bg='#1e1e2e', fg='white', font=('Arial', 10, 'bold'), padx=10, pady=8)
-        frame.pack(fill=tk.X, padx=12, pady=(0, 8))
-
-        # Add the selected tile dropdown.
-        tk.Label(frame, text='Selected tile:', bg='#1e1e2e', fg='white', font=('Arial', 10)).grid(row=0, column=0, padx=(0, 5))
-
-        self.selected_tile_var = tk.StringVar(value='')
-        self.selected_tile_selector = ttk.Combobox(frame, textvariable=self.selected_tile_var, state='readonly', width=4)
-        self.selected_tile_selector.grid(row=0, column=1, padx=(0, 15))
-        self.selected_tile_selector.bind('<<ComboboxSelected>>', self.on_tile_selector_changed)
-
-        # Add the swap target dropdown.
-        tk.Label(frame, text='Swap with tile:', bg='#1e1e2e', fg='white', font=('Arial', 10)).grid(row=0, column=2, padx=(0, 5))
-
-        self.swap_target_var = tk.StringVar(value='')
-        self.swap_target_selector = ttk.Combobox(frame, textvariable=self.swap_target_var, state='readonly', width=4)
-        self.swap_target_selector.grid(row=0, column=3, padx=(0, 15))
-
-        # Add the tile action buttons.
-        tk.Button(frame, text='Rotate Clockwise', command=self.rotate_selected_tile, bg='#94e2d5', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=4, padx=4)
-        tk.Button(frame, text='Flip Horizontally', command=self.flip_selected_tile, bg='#cba6f7', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=5, padx=4)
-        tk.Button(frame, text='Swap Tiles', command=self.swap_selected_tiles, bg='#f9e2af', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=6, padx=4)
-        tk.Button(frame, text='Deselect', command=self.deselect_tile, bg='#6c7086', fg='white', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=7, padx=4)
