@@ -518,6 +518,72 @@ class ImagePuzzle:
         self.hints_used = 0
         self.sovled = True
 
+class PuzzleCreate:
 
+    #Create main window function
 
+    def __init__ (self, root):
 
+        #Configure main window
+        self.root = root
+        self.root.title ('Scramble Puzzle / AIDAN HUSOVIC')
+        self.root.configure (bg = '#1e1e2e')
+
+        #Puzzle model and values on the app
+        self.puzzle = ImagePuzzle()
+        self.selected_tile = None
+        self.hint_tile = None
+        self.hint.home = None
+        self.original_photo = None
+        self.puzzle_photo = None
+
+        #Creating our interface 
+    
+    def controls(self):
+        
+        # Create the top control frame.
+        control_frame = tk.Frame(self.root, bg='#1e1e2e')
+        control_frame.pack(fill=tk.X, padx=12, pady=10)
+
+        # Add the grid-size selector.
+        tk.Label(control_frame, text='Grid size:', bg='#1e1e2e', fg='white', font=('Arial', 11)).pack(side=tk.LEFT)
+
+        self.grid_size_var = tk.StringVar(value='3 x 3')
+        ttk.Combobox(control_frame, textvariable=self.grid_size_var, values=['3 x 3', '4 x 4', '5 x 5'], state='readonly', width=8).pack(side=tk.LEFT, padx=(6, 15))
+
+        # Add the Load Image button.
+        tk.Button(control_frame, text='Load Image', command=self.load_image, bg='#6781b1', fg='white', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4).pack(side=tk.LEFT)
+
+        # Add the Hint button.
+        self.hint_button = tk.Button(control_frame, text='Hint', command=self.use_hint, bg='#836c43', fg='black', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4)
+        self.hint_button.pack(side=tk.LEFT, padx=(15, 0))
+
+        # Add the Solve button.
+        tk.Button(control_frame, text='Solve', command=self.solve_puzzle, bg='#ff003c', fg='white', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4).pack(side=tk.LEFT, padx=(10, 0))
+
+    def tile_controls(self):
+
+        # Create the tile control panel.
+        frame = tk.LabelFrame(self.root, text='Tile Controls', bg='#1e1e2e', fg='white', font=('Arial', 10, 'bold'), padx=10, pady=8)
+        frame.pack(fill=tk.X, padx=12, pady=(0, 8))
+
+        # Add the selected tile dropdown.
+        tk.Label(frame, text='Selected tile:', bg='#1e1e2e', fg='white', font=('Arial', 10)).grid(row=0, column=0, padx=(0, 5))
+
+        self.selected_tile_var = tk.StringVar(value='')
+        self.selected_tile_selector = ttk.Combobox(frame, textvariable=self.selected_tile_var, state='readonly', width=4)
+        self.selected_tile_selector.grid(row=0, column=1, padx=(0, 15))
+        self.selected_tile_selector.bind('<<ComboboxSelected>>', self.on_tile_selector_changed)
+
+        # Add the swap target dropdown.
+        tk.Label(frame, text='Swap with tile:', bg='#1e1e2e', fg='white', font=('Arial', 10)).grid(row=0, column=2, padx=(0, 5))
+
+        self.swap_target_var = tk.StringVar(value='')
+        self.swap_target_selector = ttk.Combobox(frame, textvariable=self.swap_target_var, state='readonly', width=4)
+        self.swap_target_selector.grid(row=0, column=3, padx=(0, 15))
+
+        # Add the tile action buttons.
+        tk.Button(frame, text='Rotate Clockwise', command=self.rotate_selected_tile, bg='#94e2d5', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=4, padx=4)
+        tk.Button(frame, text='Flip Horizontally', command=self.flip_selected_tile, bg='#cba6f7', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=5, padx=4)
+        tk.Button(frame, text='Swap Tiles', command=self.swap_selected_tiles, bg='#f9e2af', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=6, padx=4)
+        tk.Button(frame, text='Deselect', command=self.deselect_tile, bg='#6c7086', fg='white', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=7, padx=4)
