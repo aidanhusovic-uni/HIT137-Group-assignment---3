@@ -199,7 +199,7 @@ class Tile:
 
     def is_correct_orientation (self):
         #Check if the tile is in its original orientation (not rotated or flipped)
-        return self.__rotation == 0 and not self.__flipped_horizontal and not self.__flipped_vertical #return True if the tile is in its original orientation, False otherwise
+        return np.array_equal(self.__current_image, self.__original_image) #return True if the tile is in its original orientation, False otherwise
 
 
     def reset_orientation (self):
@@ -433,8 +433,8 @@ class ImagePuzzle:
 
 
         #Check if the tile at the specified index is in its correct orientation.
-        tiles = self.tiles [index]
-        return self.tiles[index].is_correct_orientation() 
+        tile = self.tiles [index]
+        return tile.tile_id == index and tile.is_correct_orientation()
 
 
     def tile_incorrect (self):
@@ -589,7 +589,6 @@ class PuzzleCreate:
         # Add the tile action buttons.
         tk.Button(frame, text='Rotate Clockwise', command=self.rotate_selected_tile, bg='#94e2d5', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=4, padx=4)
         tk.Button(frame, text='Flip Horizontally', command=self.flip_selected_tile, bg='#cba6f7', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=5, padx=4)
-        tk.Button(frame, text='Swap Tiles', command=self.swap_selected_tiles, bg='#f9e2af', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=6, padx=4)
         tk.Button(frame, text='Deselect', command=self.deselect_tile, bg='#6c7086', fg='white', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=7, padx=4)
 
 
