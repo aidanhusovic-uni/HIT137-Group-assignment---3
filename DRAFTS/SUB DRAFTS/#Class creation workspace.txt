@@ -1,0 +1,1079 @@
+#Class creation workspace
+import random
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+
+import cv2
+import numpy as np
+from PIL import Image, ImageTk
+
+
+#Transfer function Class
+class Transfer: #our base class for the tile transfers
+
+
+    def __init__(self, description):
+
+
+        self.description = description #stores the description of the transfer
+
+
+    def apply(self, value):
+
+
+        raise NotImplementedError('Override this method in subclasses')
+
+
+    def undo(self, value):
+
+
+        raise NotImplementedError('Override this method in subclasses')
+
+
+    def __str__(self):
+
+
+        return self.description #Return the description of the transfer
+
+
+#Swap Transfer function Class
+class SwapTransfer(Transfer): #our subclass for the tile swap transfer
+
+
+    def __init__(self, pos_a, pos_b):
+
+
+        super().__init__(f'Swap Tiles {pos_a} and {pos_b}') #call the base class constructor with a description of the transfer
+        self.pos_a = pos_a #store the first position
+        self.pos_b = pos_b #store the second position
+
+
+    def apply(self, tiles):
+
+
+        #swap the tiles at the two different positions
+        tiles[self.pos_a], tiles[self.pos_b] = tiles[self.pos_b], tiles[self.pos_a]
+
+
+    def undo(self, tiles):
+
+
+        #swap the tiles back to their original positions
+        self.apply(tiles)
+
+
+#Rotate Transfer Class
+class RotateTransfer(Transfer):
+    #Uses OpenCV to rotate the image by a specified angle (90, 180, or 270 degrees)
+    ROTATIONS = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
+
+
+    def __init__(self, angle):
+
+
+        if angle not in self.ROTATIONS: #if statement for if the angle is not one of the specified values
+            raise ValueError('Angle must be one of 90, 180, or 270 degrees.')
+
+
+        super().__init__(f'Rotate Image by {angle} degrees') #call the base class constructor with a description of the transfer
+        self.angle = angle
+
+
+    def apply(self, image):
+
+
+        return cv2.rotate(image, self.ROTATIONS[self.angle])
+
+
+    def undo(self, image):
+        #rotates our image back to original pos (the 360% angle is to ensure that we get the correct rotation value for the undo)
+        return cv2.rotate(image, self.ROTATIONS[(360 - self.angle) % 360])
+
+
+    @classmethod #this makes it so our new method can be called without creating an instance of the class
+
+
+    def apply_angle(cls, image, angle):
+
+
+        if angle == 0: #this disallows the image rotating if its angle is correct (at 0 degrees is true)
+            return image.copy() #rotation isnt needed
+        return cv2.rotate(image, cls.ROTATIONS[angle])
+
+
+#Flip Transfer Class
+class FlipTransfer(Transfer): #our subclass for the tile flip transfer
+
+
+    def __init__(self, direction):
+        #setting up our if statement to check if the direction is valid so not allowing it to do a flip if the direction is not valid
+        if direction not in ['horizontal', 'vertical']:
+            raise ValueError("Direction must be 'horizontal' or 'vertical'.")
+
+
+        description = 'Flip tile Horizontally' if direction == 'horizontal' else 'Flip tile Vertically'
+        super().__init__(description) #calling the base class constructor with a description of the transfer
+        self.direction = direction
+
+
+    def apply(self, image):
+
+
+        #sets the flip_n variable to 1 if the direction is horizontal, otherwise sets it to 0 for vertical
+        flip_n = 1 if self.direction == 'horizontal' else 0
+        return cv2.flip(image, flip_n)
+
+
+    def undo(self, image):
+
+
+        return self.apply(image) # flipping again will undo the flip
+
+
+#Tile Class
+class Tile:
+
+
+    def __init__(self, tile_id, image):
+        #Stores the tile ID and the original image for the tile
+        self.__tile_id = tile_id
+
+
+        self.__original_image = image.copy()
+
+
+        self.__current_image = image.copy()
+
+
+        #vars to track the current rotation and flip state of the tile
+        self.__rotation = 0
+        self.__flipped_horizontal = False
+        self.__flipped_vertical = False
+
+
+    @property #property decorator to make the tile ID read-only
+
+
+    def tile_id(self):
+        return self.__tile_id #return the tile ID to home pos
+
+
+    @property
+    def current_image(self):
+        return self.__current_image #return the current image of the tile
+
+
+    @current_image.setter #setter decorator to allow setting the current image of the tile
+    def current_image(self, image):
+        self.__current_image = image #set the current image of the tile
+
+
+    @property
+    def rotation(self):
+        return self.__rotation #return the current rotation of the tile
+
+
+    @property
+    def flipped_horizontal(self):
+        return self.__flipped_horizontal #return the current horizontal flip state of the tile
+
+
+    @property
+    def flipped_vertical(self):
+        return self.__flipped_vertical #return the current vertical flip state of the tile
+
+
+    def rotate_cw(self):
+        #Rotate the tile 90 degrees clockwise
+        self.__current_image = RotateTransfer.apply_angle(self.__current_image, 90) #rotate the current image using OpenCV
+        #updates the tile pos by +90d
+        self.__rotation = (self.__rotation + 90) % 360 #update the rotation state
+
+
+    def flip_horizontal(self):
+        #Flip the tile horizontally
+        self.__current_image = FlipTransfer('horizontal').apply(self.__current_image) #flip the current image using the custom FlipTransfer class
+        self.__flipped_horizontal = not self.__flipped_horizontal #update the horizontal flip state
+
+
+    def flip_vertical(self):
+        #Flip the tile vertically
+        self.__current_image = FlipTransfer('vertical').apply(self.__current_image) #flip the current image using the custom FlipTransfer class
+        self.__flipped_vertical = not self.__flipped_vertical #update the vertical flip state
+
+
+    def is_correct_orientation(self):
+        #Check if the tile is in its original orientation (not rotated or flipped)
+        return self.__rotation == 0 and not self.__flipped_horizontal and not self.__flipped_vertical #return True if the tile is in its original orientation, False otherwise
+
+
+    def reset_orientation(self):
+        #Reset the tile to its original orientation (not rotated or flipped)
+        self.__current_image = self.__original_image.copy() #reset the current image to the original image
+        self.__rotation = 0
+        self.__flipped_horizontal = False
+        self.__flipped_vertical = False
+
+
+#Main Puzzle function Class
+class ImagePuzzle:
+
+
+    # Maximum displayed image size.
+    MAX_SCREEN_WIDTH = 800
+    MAX_SCREEN_HEIGHT = 800
+
+
+    def __init__(self, grid_size=3):
+
+
+        #Set the initial puzzle values.
+        self.grid_size = grid_size
+        self.original_image = None
+        self.tiles = []
+        self.transformations = []
+        self.moves = 0
+        self.hints_used = 0
+        self.solved = False
+
+
+    #load image function
+
+
+    def load_image(self, file_path): #Load an image from the specified path and prepare it for the puzzle
+
+
+        #Read the image from disk.
+        image = cv2.imread(file_path) #read the image using OpenCV
+
+
+        if image is None: #if the image could not be read, raise an error
+            raise ValueError('OpenCV could not read the selected image.')
+
+
+        # Prepare the image and create the puzzle.
+        image = self.__resize_to_screen(image)
+        image = self.__make_square_and_divisible(image)
+        self.original_image = image.copy()
+
+
+        self.__create_tiles() #Create the tiles for the puzzle
+        self.__scramble_tiles() #Scramble the tiles to create the puzzle
+
+
+        #Reset the game state and counters
+        self.moves = 0
+        self.hints_used = 0
+        self.solved = False
+
+
+    def __resize_to_screen(self, image):
+
+
+        #Resize the image to fit within a certain size while maintaining the aspect ratio
+        height, width = image.shape[:2]
+
+
+        #Vars for calculating the scale factor to fit the image within the maximum screen size
+        scale = min(self.MAX_SCREEN_WIDTH / width, self.MAX_SCREEN_HEIGHT / height, 1.0)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        return cv2.resize(image, (new_width, new_height))
+
+
+    def __make_square_and_divisible(self, image):
+
+
+        #Make the image square and divisible by the grid size
+        height, width = image.shape[:2]
+
+
+        #Crops our image
+        side = min(height, width)
+        side = (side // self.grid_size) * self.grid_size
+
+
+        if side < self.grid_size: #if the side length is less than the grid size, raise an error
+            raise ValueError('Image is too small for the specified grid size.')
+
+
+        start_x = (width - side) // 2
+        start_y = (height - side) // 2
+        return image[start_y:start_y + side, start_x:start_x + side].copy()
+
+
+    def __create_tiles(self):
+
+
+        #Clears existing tiles
+        self.tiles = []
+
+
+        #Calculate the size of each tile based on the grid size
+        tile_height = self.original_image.shape[0] // self.grid_size
+        tile_width = self.original_image.shape[1] // self.grid_size
+        tile_id = 0
+
+
+        #Create the tiles by slicing the original image into smaller pieces
+
+
+        for row in range(self.grid_size): #Loop through each row of the grid
+            for col in range(self.grid_size): #Loop through each column of the grid
+                y1 = row * tile_height
+                y2 = y1 + tile_height
+                x1 = col * tile_width
+                x2 = x1 + tile_width
+                tile_image = self.original_image[y1:y2, x1:x2].copy() #Slice the original image to create the tile image
+                self.tiles.append(Tile(tile_id, tile_image))
+                tile_id += 1
+
+
+    def __scramble_tiles(self):
+
+
+        self.transformations = [] #Clear the existing transformations list
+
+
+        transfer_counts = {3: 6, 4: 12, 5: 20}
+        count = transfer_counts.get(self.grid_size, 6)
+
+
+        #Apply all of our random transformations to the tiles to scramble them
+        for i in range(count): #Loop through the number of transformations to apply
+
+
+            choice = random.choice(['swap', 'rotate', 'flip']) #Randomly choose the transformation type
+
+
+            if choice == 'swap': #If the transformation is a swap, randomly select two different tiles to swap
+                #selection and swap for 2 random tiles
+                pos_a, pos_b = random.sample(range(len(self.tiles)), 2)
+                transfer = SwapTransfer(pos_a, pos_b)
+                transfer.apply(self.tiles)
+
+
+            elif choice == 'rotate': #Else if the transformation is a rotation, randomly select a tile and a rotation angle to apply
+                #Select a random tile and a random rotate angle
+                index = random.randrange(len(self.tiles))
+                angle = random.choice([90, 180, 270])
+                transfer = RotateTransfer(angle)
+
+
+                #apply our rotation
+                for _ in range(angle // 90): #Loop through the number of 90-degree rotations to apply based on the selected angle
+                    self.tiles[index].rotate_cw()
+
+
+            else: #Else if the transformation is a flip, randomly select a tile and a flip direction to apply
+                #Random tile selection to flip
+                index = random.randrange(len(self.tiles))
+                direction = random.choice(['horizontal', 'vertical'])
+                transfer = FlipTransfer(direction)
+
+
+                #Apply the flip once using the correct Tile method
+                if direction == 'horizontal':
+                    self.tiles[index].flip_horizontal()
+                else:
+                    self.tiles[index].flip_vertical()
+
+
+            #Store our transformation for undo functionality
+            self.transformations.append(transfer)
+
+
+    def get_tile_size(self):
+        #Return the size of each tile as a tuple (width, height)
+        height, width = self.original_image.shape[:2]
+        return (width // self.grid_size, height // self.grid_size)
+
+
+    def assemble_image(self):
+
+
+        #Create rows
+
+
+        rows = []
+
+
+        for row in range(self.grid_size):
+            row_tiles = [self.tiles[row * self.grid_size + col].current_image for col in range(self.grid_size)]
+            rows.append(np.hstack(row_tiles))
+
+
+        return np.vstack(rows) #Vertically stack the rows to create the assembled image and return it
+
+
+    def swap_tiles(self, pos_a, pos_b):
+
+
+        #Swap our 2 selected tiles and count a move
+        self.tiles[pos_a], self.tiles[pos_b] = self.tiles[pos_b], self.tiles[pos_a]
+        self.moves += 1 #Increment the move counter
+
+
+    def rotate_tile(self, index):
+
+
+        #Rotate our selected tile and count a move
+        self.tiles[index].rotate_cw()
+        self.moves += 1 #Increment the move counter
+
+
+    def flip_tile(self, index, direction='horizontal'):
+
+
+        #Flip our selected tile and count a move
+        if direction == 'horizontal':
+            self.tiles[index].flip_horizontal()
+        else:
+            self.tiles[index].flip_vertical()
+        self.moves += 1 #Increment the move counter
+
+
+    def tile_correct(self, index):
+
+
+        #Check if the tile at the specified index is in its correct orientation.
+        return self.tiles[index].is_correct_orientation()
+
+
+    def tile_incorrect(self):
+
+
+        #Check the incorrect tiles
+
+
+        #Counter for checking incorrect tiles
+        return sum(not self.tile_correct(index) for index in range(len(self.tiles)))
+
+
+    def check_solved(self):
+
+
+        #Checks if any tiles not correct
+        self.solved = self.tile_incorrect() == 0
+        return self.solved
+
+
+    def hint(self):
+
+
+        #Find a incorrect tile then its correct pos
+        #Loop through the tiles to find the first one
+        for current_index in range(len(self.tiles)):
+            if not self.tile_correct(current_index):
+                return current_index, self.tiles[current_index].tile_id
+        return None
+
+
+    def solve(self):
+
+
+        #Returns all tiles to home pos
+        tile_order = [None] * len(self.tiles)
+
+
+        for tile in self.tiles:
+            tile_order[tile.tile_id] = tile
+
+
+        self.tiles = tile_order
+
+
+        #Restores the original orientation
+        for tile in self.tiles:
+            tile.reset_orientation()
+
+
+        #reset the counter
+        self.moves = 0
+        self.hints_used = 0
+        self.solved = True
+
+
+class PuzzleCreate:
+
+
+    #Create main window function
+
+
+    def __init__(self, root):
+
+
+        #Configure main window
+        self.root = root
+        self.root.title('Scramble Puzzle / AIDAN HUSOVIC')
+        self.root.configure(bg='#1e1e2e')
+
+
+        #Puzzle model and values on the app
+        self.puzzle = ImagePuzzle()
+        self.selected_tile = None
+        self.hint_tile = None
+        self.hint_home = None
+        self.original_photo = None
+        self.puzzle_photo = None
+
+
+        #Creating our interface
+        self.controls()
+        self.tile_controls()
+        self.build_canvas()
+        self.build_status_bar()
+
+
+    def build_status_bar(self):
+
+
+        #Create the status bar at the bottom of the window
+        self.status_var = tk.StringVar(value='Load an image to begin.')
+        tk.Label(self.root, textvariable=self.status_var, bg='#11111b', fg='#a6adc8', font=('Arial', 10), anchor='w', padx=12, pady=6).pack(fill=tk.X, side=tk.BOTTOM)
+
+
+    def controls(self):
+
+
+        # Create the top control frame.
+        control_frame = tk.Frame(self.root, bg='#1e1e2e')
+        control_frame.pack(fill=tk.X, padx=12, pady=10)
+
+
+        # Add the grid-size selector.
+        tk.Label(control_frame, text='Grid size:', bg='#1e1e2e', fg='white', font=('Arial', 11)).pack(side=tk.LEFT)
+
+
+        self.grid_size_var = tk.StringVar(value='3 x 3')
+        ttk.Combobox(control_frame, textvariable=self.grid_size_var, values=['3 x 3', '4 x 4', '5 x 5'], state='readonly', width=8).pack(side=tk.LEFT, padx=(6, 15))
+
+
+        # Add the Load Image button.
+        tk.Button(control_frame, text='Load Image', command=self.load_image, bg='#6781b1', fg='white', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4).pack(side=tk.LEFT)
+
+
+        # Add the Hint button.
+        self.hint_button = tk.Button(control_frame, text='Hint', command=self.use_hint, bg='#836c43', fg='black', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4)
+        self.hint_button.pack(side=tk.LEFT, padx=(15, 0))
+
+
+        # Add the Solve button.
+        tk.Button(control_frame, text='Solve', command=self.solve_puzzle, bg='#ff003c', fg='white', font=('Arial', 11, 'bold'), relief=tk.FLAT, padx=12, pady=4).pack(side=tk.LEFT, padx=(10, 0))
+
+
+    def tile_controls(self):
+
+
+        # Create the tile control panel.
+        frame = tk.LabelFrame(self.root, text='Tile Controls', bg='#1e1e2e', fg='white', font=('Arial', 10, 'bold'), padx=10, pady=8)
+        frame.pack(fill=tk.X, padx=12, pady=(0, 8))
+
+
+        # Add the selected tile dropdown.
+        tk.Label(frame, text='Selected tile:', bg='#1e1e2e', fg='white', font=('Arial', 10)).grid(row=0, column=0, padx=(0, 5))
+
+
+        self.selected_tile_var = tk.StringVar(value='')
+        self.selected_tile_selector = ttk.Combobox(frame, textvariable=self.selected_tile_var, state='readonly', width=4)
+        self.selected_tile_selector.grid(row=0, column=1, padx=(0, 15))
+        self.selected_tile_selector.bind('<<ComboboxSelected>>', self.on_tile_selector_changed)
+
+
+        # Add the swap target dropdown.
+        tk.Label(frame, text='Swap with tile:', bg='#1e1e2e', fg='white', font=('Arial', 10)).grid(row=0, column=2, padx=(0, 5))
+
+
+        self.swap_target_var = tk.StringVar(value='')
+        self.swap_target_selector = ttk.Combobox(frame, textvariable=self.swap_target_var, state='readonly', width=4)
+        self.swap_target_selector.grid(row=0, column=3, padx=(0, 15))
+
+
+        # Add the tile action buttons.
+        tk.Button(frame, text='Rotate Clockwise', command=self.rotate_selected_tile, bg='#94e2d5', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=4, padx=4)
+        tk.Button(frame, text='Flip Horizontally', command=self.flip_selected_tile, bg='#cba6f7', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=5, padx=4)
+        tk.Button(frame, text='Swap Tiles', command=self.swap_selected_tiles, bg='#f9e2af', fg='black', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=6, padx=4)
+        tk.Button(frame, text='Deselect', command=self.deselect_tile, bg='#6c7086', fg='white', font=('Arial', 10, 'bold'), relief=tk.FLAT, padx=10, pady=4).grid(row=0, column=7, padx=4)
+
+
+    def build_canvas(self):
+
+
+        # Create the frame holding both image canvases.
+        frame = tk.Frame(self.root, bg='#1e1e2e')
+        frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 8))
+
+
+        # Create the original image canvas.
+        self.original_canvas = tk.Canvas(frame, width=ImagePuzzle.MAX_SCREEN_WIDTH, height=ImagePuzzle.MAX_SCREEN_HEIGHT, bg='#11111b', highlightthickness=1, highlightbackground='#45475a')
+        self.original_canvas.grid(row=0, column=0, padx=(0, 12))
+
+
+        # Create the puzzle image canvas.
+        self.puzzle_canvas = tk.Canvas(frame, width=ImagePuzzle.MAX_SCREEN_WIDTH, height=ImagePuzzle.MAX_SCREEN_HEIGHT, bg='#11111b', highlightthickness=1, highlightbackground='#45475a')
+        self.puzzle_canvas.grid(row=0, column=1)
+
+
+        # Bind mouse controls to the puzzle canvas.
+        self.puzzle_canvas.bind('<Button-1>', self.on_left_click)
+        self.puzzle_canvas.bind('<Button-3>', self.on_right_click)
+        self.puzzle_canvas.bind('<Shift-Button-1>', self.on_shift_left_click)
+
+
+        # Add labels below the canvases.
+        tk.Label(self.root, text='Original image (reference) Puzzle image (click or use buttons to solve)', bg='#1e1e2e', fg='#a6adc8', font=('Arial', 10)).pack()
+
+
+    def load_image(self):
+        # Let the user choose an image file.
+        file_path = filedialog.askopenfilename(title='Choose an image', filetypes=[('Image files', '*.jpg *.jpeg *.png *.bmp'), ('All files', '*.*')])
+
+
+        # Stop if the user cancels.
+        if not file_path:
+            return
+
+
+        # Convert the grid-size dropdown into an integer.
+        self.puzzle.grid_size = int(self.grid_size_var.get().split('x')[0].strip())
+
+
+        try:
+            # Load, tile and scramble the image.
+            self.puzzle.load_image(file_path)
+        except Exception as error:
+            # Show an error instead of crashing.
+            messagebox.showerror('Image Error', str(error))
+            return
+
+
+        # Reset selections and hints.
+        self.selected_tile = None
+        self.hint_tile = None
+        self.hint_home = None
+        self.hint_button.config(state=tk.NORMAL)
+
+
+        # Fill the tile dropdowns.
+        choices = [str(index) for index in range(len(self.puzzle.tiles))]
+        self.selected_tile_selector['values'] = choices
+        self.swap_target_selector['values'] = choices
+        self.selected_tile_var.set('')
+        self.swap_target_var.set('')
+
+
+        # Draw the images and update the status.
+        self.display_images()
+        self.update_status()
+
+
+    def on_tile_selector_changed(self, event=None):
+        # Read the selected tile number.
+        try:
+            self.selected_tile = int(self.selected_tile_var.get())
+        except ValueError:
+            self.selected_tile = None
+
+
+        # Redraw the selection and status.
+        self.display_images()
+        self.update_status()
+
+
+    def get_tile_from_click(self, event):
+        # Do nothing if there is no active puzzle.
+        if self.puzzle.original_image is None or self.puzzle.solved:
+            return None
+
+
+        # Convert the mouse position into a tile index.
+        tile_width, tile_height = self.puzzle.get_tile_size()
+        col = event.x // tile_width
+        row = event.y // tile_height
+
+
+        if 0 <= col < self.puzzle.grid_size and 0 <= row < self.puzzle.grid_size:
+            return row * self.puzzle.grid_size + col
+        return None
+
+
+    def on_left_click(self, event):
+        # Find the clicked tile.
+        index = self.get_tile_from_click(event)
+        if index is None:
+            return
+
+
+        # Remove any active hint.
+        self.clear_hint()
+
+
+        # Select the tile on the first click.
+        if self.selected_tile is None:
+            self.select_tile(index)
+
+
+        # Deselect when clicking the same tile again.
+        elif self.selected_tile == index:
+            self.deselect_tile()
+
+
+        # Swap when clicking a second different tile.
+        else:
+            self.puzzle.swap_tiles(self.selected_tile, index)
+            self.deselect_tile()
+            self.after_player_move()
+            self.display_images()
+            self.update_status()
+
+
+    def on_right_click(self, event):
+        # Find the clicked tile.
+        index = self.get_tile_from_click(event)
+        if index is None:
+            return
+
+
+        # Rotate the tile and redraw.
+        self.clear_hint()
+        self.puzzle.rotate_tile(index)
+        self.deselect_tile()
+        self.after_player_move()
+        self.display_images()
+        self.update_status()
+
+
+    def on_shift_left_click(self, event):
+        # Find the clicked tile.
+        index = self.get_tile_from_click(event)
+        if index is None:
+            return
+
+
+        # Flip the tile and redraw.
+        self.clear_hint()
+        self.puzzle.flip_tile(index, direction='horizontal')
+        self.deselect_tile()
+        self.after_player_move()
+        self.display_images()
+        self.update_status()
+
+
+    def select_tile(self, index):
+        # Store and display the selected tile.
+        self.selected_tile = index
+        self.selected_tile_var.set(str(index))
+        self.display_images()
+        self.update_status()
+
+
+    def deselect_tile(self):
+        # Clear the selected tile and remove its outline.
+        self.selected_tile = None
+        self.selected_tile_var.set('')
+        self.display_images()
+        self.update_status()
+
+
+    def rotate_selected_tile(self):
+        # Check that the action is allowed.
+        if not self.__can_use_tile_controls():
+            return
+
+
+        try:
+            # Read the selected tile number.
+            index = int(self.selected_tile_var.get())
+        except ValueError:
+            messagebox.showinfo('No Tile Selected', 'Please select a tile first.')
+            return
+
+
+        # Rotate the tile and redraw.
+        self.clear_hint()
+        self.puzzle.rotate_tile(index)
+        self.deselect_tile()
+        self.after_player_move()
+        self.display_images()
+        self.update_status()
+
+
+    def flip_selected_tile(self):
+        # Check that the action is allowed.
+        if not self.__can_use_tile_controls():
+            return
+
+
+        try:
+            # Read the selected tile number.
+            index = int(self.selected_tile_var.get())
+        except ValueError:
+            messagebox.showinfo('No Tile Selected', 'Please select a tile first.')
+            return
+
+
+        # Flip the tile and redraw.
+        self.clear_hint()
+        self.puzzle.flip_tile(index, direction='horizontal')
+        self.deselect_tile()
+        self.after_player_move()
+        self.display_images()
+        self.update_status()
+
+
+    def swap_selected_tiles(self):
+        # Check that the action is allowed.
+        if not self.__can_use_tile_controls():
+            return
+
+
+        try:
+            # Read both selected tile numbers.
+            index_a = int(self.selected_tile_var.get())
+            index_b = int(self.swap_target_var.get())
+        except ValueError:
+            messagebox.showinfo('No Tile Selected', 'Please select both tiles first.')
+            return
+
+
+        # Prevent swapping a tile with itself.
+        if index_a == index_b:
+            messagebox.showinfo('Swap Tiles', 'Choose two different tiles to swap.')
+            return
+
+
+        # Swap the tiles and redraw.
+        self.clear_hint()
+        self.puzzle.swap_tiles(index_a, index_b)
+        self.deselect_tile()
+        self.after_player_move()
+        self.display_images()
+        self.update_status()
+
+
+    def __can_use_tile_controls(self):
+        # A puzzle must be loaded first.
+        if self.puzzle.original_image is None:
+            messagebox.showinfo('No Image', 'Load an image first.')
+            return False
+
+
+        # No moves are accepted after solving.
+        if self.puzzle.solved:
+            messagebox.showinfo('Puzzle Solved', 'The puzzle is already solved.')
+            return False
+
+
+        return True
+
+
+    def after_player_move(self):
+        # Check whether the puzzle has been solved.
+        if self.puzzle.check_solved():
+            messagebox.showinfo('Puzzle Solved', f'Congratulations! You restored the image in {self.puzzle.moves} moves.')
+            self.hint_button.config(state=tk.DISABLED)
+
+
+    def display_images(self):
+        # Do nothing if no image is loaded.
+        if self.puzzle.original_image is None:
+            return
+
+
+        # Convert and display the original image.
+        original_rgb = cv2.cvtColor(self.puzzle.original_image, cv2.COLOR_BGR2RGB)
+        self.original_photo = ImageTk.PhotoImage(Image.fromarray(original_rgb))
+
+
+        # Convert and display the current puzzle image.
+        puzzle_rgb = cv2.cvtColor(self.puzzle.assemble_image(), cv2.COLOR_BGR2RGB)
+        self.puzzle_photo = ImageTk.PhotoImage(Image.fromarray(puzzle_rgb))
+
+
+        # Clear old canvas drawings.
+        self.original_canvas.delete('all')
+        self.puzzle_canvas.delete('all')
+
+
+        # Draw both images.
+        self.original_canvas.create_image(0, 0, anchor=tk.NW, image=self.original_photo)
+        self.puzzle_canvas.create_image(0, 0, anchor=tk.NW, image=self.puzzle_photo)
+
+
+        # Draw grid lines and tile markers.
+        self.draw_grid(self.original_canvas)
+        self.draw_grid(self.puzzle_canvas)
+        self.draw_tile_markers()
+
+
+    def draw_grid(self, canvas):
+        # Do nothing if no image is loaded.
+        if self.puzzle.original_image is None:
+            return
+
+
+        # Get image and tile dimensions.
+        height, width = self.puzzle.original_image.shape[:2]
+        tile_width, tile_height = self.puzzle.get_tile_size()
+
+
+        # Draw internal grid lines.
+        for index in range(1, self.puzzle.grid_size):
+            x = index * tile_width
+            y = index * tile_height
+
+
+            canvas.create_line(x, 0, x, height, fill='#ffffff', stipple='gray50')
+            canvas.create_line(0, y, width, y, fill='#ffffff', stipple='gray50')
+
+
+    def draw_tile_markers(self):
+        # Do nothing if no image is loaded.
+        if self.puzzle.original_image is None:
+            return
+
+
+        # Get tile dimensions.
+        tile_width, tile_height = self.puzzle.get_tile_size()
+
+
+        # Draw the yellow outline around the selected tile.
+        if self.selected_tile is not None:
+            x1, y1 = self.__tile_top_left(self.selected_tile)
+            self.puzzle_canvas.create_rectangle(x1 + 2, y1 + 2, x1 + tile_width - 2, y1 + tile_height - 2, outline='#f9e2af', width=4)
+
+
+        # Draw green ticks on correct tiles.
+        for index in range(len(self.puzzle.tiles)):
+            if self.puzzle.tile_correct(index):
+                x1, y1 = self.__tile_top_left(index)
+                self.puzzle_canvas.create_text(x1 + tile_width - 18, y1 + 18, text='✔', fill='#00ff88', font=('Arial', 16, 'bold'))
+
+
+        # Draw hint circles.
+        if self.hint_tile is not None:
+            self.__draw_hint_circle(self.puzzle_canvas, self.hint_tile)
+        if self.hint_home is not None:
+            self.__draw_hint_circle(self.original_canvas, self.hint_home)
+
+
+    def __tile_top_left(self, index):
+        # Get tile dimensions.
+        tile_width, tile_height = self.puzzle.get_tile_size()
+
+
+        # Convert the tile index into a canvas position.
+        col = index % self.puzzle.grid_size
+        row = index // self.puzzle.grid_size
+        return col * tile_width, row * tile_height
+
+
+    def __draw_hint_circle(self, canvas, index):
+        # Get tile dimensions and position.
+        tile_width, tile_height = self.puzzle.get_tile_size()
+        x1, y1 = self.__tile_top_left(index)
+
+
+        # Calculate the circle centre and radius.
+        centre_x = x1 + tile_width // 2
+        centre_y = y1 + tile_height // 2
+        radius = min(tile_width, tile_height) // 4
+
+
+        # Draw the blue hint circle.
+        canvas.create_oval(centre_x - radius, centre_y - radius, centre_x + radius, centre_y + radius, outline='#00b4ff', width=5)
+
+
+    def clear_hint(self):
+        # Remove both hint markers.
+        self.hint_tile = None
+        self.hint_home = None
+        self.display_images()
+
+
+    def use_hint(self):
+        # Do nothing if there is no active puzzle.
+        if self.puzzle.original_image is None or self.puzzle.solved:
+            return
+
+
+        # Allow only three hints per image.
+        if self.puzzle.hints_used >= 3:
+            self.hint_button.config(state=tk.DISABLED)
+            return
+
+
+        # Find an incorrect tile.
+        hint = self.puzzle.hint()
+        if hint is None:
+            messagebox.showinfo('Hint', 'The puzzle is already solved.')
+            return
+
+
+        # Store and draw the hint.
+        self.hint_tile, self.hint_home = hint
+        self.puzzle.hints_used += 1
+
+
+        if self.puzzle.hints_used >= 3:
+            self.hint_button.config(state=tk.DISABLED)
+
+
+        self.display_images()
+        self.update_status()
+
+
+    def solve_puzzle(self):
+        # Do nothing if no image has been loaded.
+        if self.puzzle.original_image is None:
+            messagebox.showinfo('Solve', 'Load an image first.')
+            return
+
+
+        # Solve the puzzle and clear markers.
+        self.puzzle.solve()
+        self.deselect_tile()
+        self.clear_hint()
+        self.hint_button.config(state=tk.DISABLED)
+        self.display_images()
+        self.update_status()
+
+
+    def update_status(self):
+        # Do nothing if no image has been loaded.
+        if self.puzzle.original_image is None:
+            return
+
+
+        # Calculate the current status values.
+        incorrect = self.puzzle.tile_incorrect()
+        hints_left = max(0, 3 - self.puzzle.hints_used)
+
+
+        # Build the status message.
+        if self.puzzle.solved:
+            message = f'Solved! Moves: {self.puzzle.moves} | Incorrect tiles: 0 | Hints remaining: {hints_left}'
+        else:
+            selected = 'None' if self.selected_tile is None else str(self.selected_tile)
+            message = f'Moves: {self.puzzle.moves} | Incorrect tiles: {incorrect} | Hints remaining: {hints_left} | Selected tile: {selected}'
+
+
+        # Update the status bar.
+        self.status_var.set(message)
+
+
+# Starts the Tkinter application.
+def main():
+    # Create the window and application.
+    root = tk.Tk()
+    PuzzleCreate(root)
+
+
+    # Start the Tkinter event loop.
+    root.mainloop()
+
+
+# Run the program only when this file is executed directly.
+if __name__ == '__main__':
+    main()
